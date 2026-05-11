@@ -65,13 +65,11 @@ export const HardshipForm = () => {
           }),
         },
       );
-      console.log(input.hardshipReason.trim());
       if (!res.ok) {
         const data = await res.json();
-        setError(data.message || "😢Failed to submit application");
+        setError(data.message || "😢Failed to submit application due to unexpected error");
         return;
       }
-      console.log(res.json);
       clearInput();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 5000); // hide after 5 seconds
