@@ -67,7 +67,10 @@ export const HardshipForm = () => {
       );
       if (!res.ok) {
         const data = await res.json();
-        setError(data.message || "😢Failed to submit application due to unexpected error");
+        setError(
+          data.message ||
+            "😢Failed to submit application due to unexpected error",
+        );
         return;
       }
       clearInput();

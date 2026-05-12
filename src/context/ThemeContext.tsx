@@ -20,10 +20,8 @@ export function ThemeProvider({ children } : {children: React.ReactNode}) {
     localStorage.setItem("theme", theme);
     if (theme == "dark") {
       document.documentElement.classList.add("dark");
-      console.log( `{the theme changed to ${theme}}`)
     } else {
       document.documentElement.classList.remove("dark");
-      console.log(`{the theme changed to ${theme}}`);
     }
   }, [theme]);
 
