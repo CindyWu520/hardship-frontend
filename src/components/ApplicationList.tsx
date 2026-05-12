@@ -81,8 +81,6 @@ export const ApplicationList = () => {
         )
     );
   }, [data, searchByName, status]);
-  console.log(data);
-  console.log(processData);
 
   const refetch = () => setRefresh((prev) => prev + 1);
 
