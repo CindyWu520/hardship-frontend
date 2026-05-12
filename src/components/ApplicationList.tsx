@@ -18,6 +18,9 @@ export const ApplicationList = () => {
   const [status, setStatus] = useState("");
   const [editItem, setEditItem] = useState<Application | null>(null);
   const [refresh, setRefresh] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const refetch = () => setRefresh((prev) => prev + 1);
 
   // call backend to get the list of result, and set to data
   useEffect(() => {
@@ -82,7 +85,20 @@ export const ApplicationList = () => {
     );
   }, [data, searchByName, status]);
 
-  const refetch = () => setRefresh((prev) => prev + 1);
+  // pagination
+  const paginationData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return processData.slice(start, end);
+  }, [processData, currentPage]);
+
+  const totalPages = Math.ceil(processData.length / itemsPerPage);
+  console.log(totalPages);
+
+  // reset to page 1 when search or filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [status, searchByName]);
 
   return (
     //  hardship application
@@ -178,7 +194,6 @@ export const ApplicationList = () => {
             ))}
           </div>
         </div>
-
         {/* table list */}
         <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
@@ -195,7 +210,7 @@ export const ApplicationList = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
-              {processData.length === 0 ? (
+              {paginationData.length === 0 ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -205,7 +220,7 @@ export const ApplicationList = () => {
                   </td>
                 </tr>
               ) : (
-                processData.map((item) => (
+                paginationData.map((item) => (
                   <tr
                     key={item.hardshipId}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -262,6 +277,59 @@ export const ApplicationList = () => {
               )}
             </tbody>
           </table>
+
+          {/* Pagination */}
+          {totalPages === 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <span className="text-xs text-gray-400">
+                Showing {(currentPage - 1) * itemsPerPage + 1}–
+                {Math.min(currentPage * itemsPerPage, processData.length)} of{" "}
+                {processData.length} applications
+              </span>
+
+              <div className="flex gap-1">
+                {/* Prev button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ‹
+                </button>
+
+                {/* Page number buttons */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors
+                      ${
+                        currentPage === page
+                          ? "bg-teal-600 text-white"
+                          : "border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
+
+                {/* Next button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
