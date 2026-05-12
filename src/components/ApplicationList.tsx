@@ -19,7 +19,7 @@ export const ApplicationList = () => {
   const [editItem, setEditItem] = useState<Application | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   const refetch = () => setRefresh((prev) => prev + 1);
 
   // call backend to get the list of result, and set to data
@@ -38,6 +38,7 @@ export const ApplicationList = () => {
           setError(json.message || "😢Something went wrong");
           return;
         }
+        // setState called inside async function
         setData(json);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unexpected error");
@@ -85,6 +86,18 @@ export const ApplicationList = () => {
     );
   }, [data, searchByName, status]);
 
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchByName(e.target.value);
+    // reset to page 1 when search or filter change
+    setCurrentPage(1);
+  };
+
+  const handleFilter = (s: string) => {
+    setStatus(s);
+    // reset to page 1 when search or filter change
+    setCurrentPage(1);
+  };
+
   // pagination
   const paginationData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -96,9 +109,10 @@ export const ApplicationList = () => {
   console.log(totalPages);
 
   // reset to page 1 when search or filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [status, searchByName]);
+  // useEffect(() => {
+  //   // cascading renders warning: setState called synchronously inside effect
+  //   setCurrentPage(1);
+  // }, [status, searchByName]);
 
   return (
     //  hardship application
@@ -174,7 +188,7 @@ export const ApplicationList = () => {
             <input
               type="text"
               value={searchByName}
-              onChange={(e) => setSearchByName(e.target.value)}
+              onChange={handleSearch}
               className="text-sm text-gray-900 dark:text-white bg-transparent outline-none w-full"
               placeholder="Search Applications"
             />
@@ -185,7 +199,7 @@ export const ApplicationList = () => {
             {["All", "Pending", "Approved", "Rejected"].map((s) => (
               <button
                 key={s}
-                onClick={() => setStatus(s)}
+                onClick={() => handleFilter(s)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors capitalize 
             ${status === s ? "bg-steal-600 text-white" : "border border-gray-200 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
               >
@@ -279,7 +293,7 @@ export const ApplicationList = () => {
           </table>
 
           {/* Pagination */}
-          {totalPages === 1 && (
+          {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
               <span className="text-xs text-gray-400">
                 Showing {(currentPage - 1) * itemsPerPage + 1}–
