@@ -1,18 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { EditModal } from "./EditModal";
+import { useAuth } from "../context/AuthContext";
+import { hardshipApi, type Application } from "../api/apiClient";
+import { getUiError, type UiError } from "../util/getUiError";
 
-type Application = {
-  hardshipId: number;
-  name: string;
-  dateOfBirth: string;
-  income: number;
-  expenses: number;
-  reason: string | null;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  createdAt: string;
-};
 export const ApplicationList = () => {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UiError | null>(null);
   const [data, setData] = useState<Application[]>([]);
   const [searchByName, setSearchByName] = useState("");
   const [status, setStatus] = useState("");
@@ -22,32 +15,26 @@ export const ApplicationList = () => {
   const itemsPerPage = 5;
   const refetch = () => setRefresh((prev) => prev + 1);
 
-  // call backend to get the list of result, and set to data
+  const { canEdit, canDelete } = useAuth();
+
+  // -------------------hardship list----------------------
   useEffect(() => {
     const fetchApplication = async () => {
       try {
         setError(null);
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/v1/hardship`,
-          {
-            method: "GET",
-          },
-        );
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json.message || "😢Something went wrong");
-          return;
-        }
+        const data = await hardshipApi.getAll();
         // setState called inside async function
-        setData(json);
+        setData(data);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Unexpected error");
+        setError(getUiError(e));
       }
     };
     fetchApplication();
   }, [refresh]);
 
-  // sync with data: useMemo
+  // -------------------sync with data: useMemo----------------------
+
+  // count pannel
   const pendingCount = useMemo(
     () => data.filter((item) => item.status === "PENDING").length,
     [data],
@@ -63,6 +50,7 @@ export const ApplicationList = () => {
     [data],
   );
 
+  // filter + search pannel
   const processData = useMemo(() => {
     return (
       data
@@ -108,6 +96,17 @@ export const ApplicationList = () => {
   const totalPages = Math.ceil(processData.length / itemsPerPage);
   console.log(totalPages);
 
+  // -------------------delete hardship----------------------
+  const handleDelete = async (id: number) => {
+    try {
+      setError(null);
+      await hardshipApi.delete(id);
+      refetch();
+    } catch (e) {
+      setError(getUiError(e));
+    }
+  };
+
   // reset to page 1 when search or filter change
   // useEffect(() => {
   //   // cascading renders warning: setState called synchronously inside effect
@@ -125,15 +124,13 @@ export const ApplicationList = () => {
           Review and manage all submitted applications.
         </p>
       </div>
-
       {/* Error */}
       {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4 text-xs text-red-700">
           <span>⚠️</span>
-          <span>{error}</span>
+          <span>{error.message}</span>
         </div>
       )}
-
       {/* 4 count pannels */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {/* total*/}
@@ -178,7 +175,6 @@ export const ApplicationList = () => {
           <p className="text-xs text-gray-400 mt-1">Awaiting review</p>
         </div>
       </div>
-
       {/* table pannel */}
       <div className="px-4 py-8">
         <div className="flex items-center justify-between mb-4">
@@ -220,14 +216,14 @@ export const ApplicationList = () => {
                 <th className="px-4 py-4 text-left">Reason</th>
                 <th className="px-4 py-4 text-left">Status</th>
                 <th className="px-4 py-4 text-left">Created At</th>
-                <th className="px-4 py-3 text-left">Operation</th>
+                {canEdit && <th className="px-4 py-3 text-left">Operation</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
               {paginationData.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={canEdit ? 8 : 7}
                     className="px-4 py-8 text-center text-gray-400 text-sm"
                   >
                     No Applications found.
@@ -273,19 +269,28 @@ export const ApplicationList = () => {
                     <td className="px-4 py-3 font-medium text-gray-500 dark:text-white">
                       {item.createdAt ? item.createdAt.substring(0, 10) : "-"}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditItem(item)}
-                          className="px-2 py-1 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button className="px-2 py-1 rounded-lg text-xs font-medium text-red-600 bg-red-50 border border-red-200 hover:bg-red-200 transition-colors">
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {canEdit && (
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          {canEdit && (
+                            <button
+                              onClick={() => setEditItem(item)}
+                              className="px-2 py-1 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.hardshipId)}
+                              className="px-2 py-1 rounded-lg text-xs font-medium text-red-600 bg-red-50 border border-red-200 hover:bg-red-200 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -346,7 +351,6 @@ export const ApplicationList = () => {
           )}
         </div>
       </div>
-
       {/* edit button: render editModal */}
       {editItem && (
         <EditModal

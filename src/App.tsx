@@ -3,6 +3,9 @@ import "./App.css";
 import { Header } from "./components/Header";
 import { HardshipForm } from "./components/HardshipForm";
 import { ApplicationList } from "./components/ApplicationList";
+import RegisterPage from "./pages/RegisterPage";
+import LoginPage from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -10,8 +13,26 @@ function App() {
       <Header />
       <main>
         <Routes>
-          <Route path="/" element={<HardshipForm />} />
-          <Route path="/lists" element={<ApplicationList />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              // wrap with protected route
+              <ProtectedRoute>
+                <HardshipForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lists"
+            element={
+              // wrap with protected route
+              <ProtectedRoute>
+                <ApplicationList />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
     </div>

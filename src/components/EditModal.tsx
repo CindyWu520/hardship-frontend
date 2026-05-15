@@ -1,36 +1,28 @@
 import { useState } from "react";
-
-type Application = {
-  hardshipId: number;
-  name: string;
-  dateOfBirth: string;
-  income: number;
-  expenses: number;
-  reason: string | null;
-};
+import {
+  hardshipApi,
+  type UpdateHardshipRequest,
+  type UpdateItem,
+} from "../api/apiClient";
+import { getUiError, type UiError } from "../util/getUiError";
 
 type editModalProps = {
-  item: Application;
+  item: UpdateItem;
   onClose: () => void;
   onSuccess: () => void;
 };
 
 export const EditModal = ({ item, onClose, onSuccess }: editModalProps) => {
   const [input, setInput] = useState({
+    hardshipId: item.hardshipId,
     name: item.name,
     dateOfBirth: item.dateOfBirth,
     income: item.income,
     expenses: item.expenses,
     reason: item.reason ?? "",
+    status: item.status,
   });
-  const [error, setError] = useState<string | null>(null);
-
-  const handleInput = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setInput((prev) => ({ ...prev, [name]: value }));
-  };
+  const [error, setError] = useState<UiError | null>(null);
 
   const nameChanged = item.name !== input.name;
   const dateOfBirthChanged = item.dateOfBirth !== input.dateOfBirth;
@@ -39,37 +31,33 @@ export const EditModal = ({ item, onClose, onSuccess }: editModalProps) => {
     item.expenses.toString() !== input.expenses.toString();
   const reasonChanged = (item.reason ?? null) !== input.reason;
 
+  // ------------------handleInput-----------------------
+  const handleInput = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setInput((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // ------------------update hardship-----------------------
   const handleSubmit = async () => {
     try {
       setError(null);
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/hardship/${item.hardshipId}`,
-        {
-          method: "PUT",
-          headers: { "Content-type": "application/json" },
-          body: JSON.stringify({
-            name: input.name,
-            dateOfBirth: input.dateOfBirth,
-            income: parseFloat(input.income.toFixed(2)),
-            expenses: parseFloat(input.expenses.toFixed(2)),
-            reason: input.reason.trim() || null,
-          }),
-        },
-      );
-      if (!res.ok) {
-        const data = await res.json();
-        setError(
-          data.message ||
-            "😢Failed to update application due to unexpected Error",
-        );
-        return;
-      }
+      const body: UpdateHardshipRequest = {
+        name: input.name,
+        dateOfBirth: input.dateOfBirth,
+        income: parseFloat(input.income.toFixed(2)),
+        expenses: parseFloat(input.expenses.toFixed(2)),
+        reason: input.reason.trim() || null,
+        status: input.status,
+      };
+      await hardshipApi.update(input.hardshipId, body);
       // refetch the list
       onSuccess();
       // close the modal
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(getUiError(e));
     }
   };
 
@@ -119,7 +107,7 @@ export const EditModal = ({ item, onClose, onSuccess }: editModalProps) => {
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4 text-xs text-red-700">
               <span>⚠️</span>
-              <span>{error}</span>
+              <span>{error.message}</span>
             </div>
           )}
 

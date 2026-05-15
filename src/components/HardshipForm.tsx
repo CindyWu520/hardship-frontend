@@ -1,17 +1,25 @@
 import { useState, useMemo } from "react";
+import {
+  hardshipApi,
+  type ApiError,
+  type CreateHardshipRequest,
+  type HardshipFormInput,
+} from "../api/apiClient";
+import { getUiError, type UiError } from "../util/getUiError";
 
-const initialInput = {
-  fullName: "",
+const initialInput: HardshipFormInput = {
+  name: "",
   dateOfBirth: "", // convert to local Date automatically "YYYY-MM-DD"
-  annualIncome: "", // float will lose precision on number
-  annualExpenses: "",
-  hardshipReason: "",
+  income: "", // float will lose precision on number
+  expenses: "",
+  reason: "",
 };
 
 export const HardshipForm = () => {
-  const [input, setInput] = useState(initialInput);
-  const [error, setError] = useState<string | null>(null);
+  const [input, setInput] = useState<HardshipFormInput>(initialInput);
+  const [error, setError] = useState<UiError | null>(null);
   const [success, setSuccess] = useState(false);
+  const [fieldErros, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleInput = (
     e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>,
@@ -22,8 +30,8 @@ export const HardshipForm = () => {
 
   // calculate netIncome and expense ratio
   const { netIncome, expenseRatio } = useMemo(() => {
-    const income = parseFloat(input.annualIncome);
-    const expenses = parseFloat(input.annualExpenses);
+    const income = parseFloat(input.income);
+    const expenses = parseFloat(input.expenses);
 
     if (income > 0 && expenses > 0) {
       return {
@@ -32,7 +40,7 @@ export const HardshipForm = () => {
       };
     }
     return { netIncome: null, expenseRatio: null };
-  }, [input.annualIncome, input.annualExpenses]);
+  }, [input.income, input.expenses]);
 
   // clear all the input
   const clearInput = () => {
@@ -41,43 +49,37 @@ export const HardshipForm = () => {
 
   const handleSubmit = async () => {
     try {
-      const income = parseFloat(input.annualIncome);
-      const expenses = parseFloat(input.annualExpenses);
+      const income = parseFloat(input.income);
+      const expenses = parseFloat(input.expenses);
 
-      // validation
-      if (!input.fullName || !input.dateOfBirth || !income || !expenses) {
+      // validation, isNaN(n) : true if non-numeric, false if is number
+      if (
+        !input.name ||
+        !input.dateOfBirth ||
+        isNaN(income) ||
+        isNaN(expenses)
+      ) {
         throw new Error("Please fill in all required fileds");
       }
 
       setError(null);
-      //   console.log(API);
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/hardship`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: input.fullName,
-            dateOfBirth: input.dateOfBirth,
-            income: parseFloat(income.toFixed(2)),
-            expenses: parseFloat(expenses.toFixed(2)),
-            reason: input.hardshipReason.trim() || null,
-          }),
-        },
-      );
-      if (!res.ok) {
-        const data = await res.json();
-        setError(
-          data.message ||
-            "😢Failed to submit application due to unexpected error",
-        );
-        return;
-      }
+      const body: CreateHardshipRequest = {
+        name: input.name,
+        dateOfBirth: input.dateOfBirth,
+        income: parseFloat(income.toFixed(2)),
+        expenses: parseFloat(expenses.toFixed(2)),
+        reason: input.reason?.trim() || null,
+      };
+      await hardshipApi.create(body);
       clearInput();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 5000); // hide after 5 seconds
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      if (e && typeof e === "object" && "fieldErrors" in e) {
+        setFieldErrors((e as ApiError).fieldErrors ?? {});
+      } else {
+        setError(getUiError(e));
+      }
     }
   };
 
@@ -108,7 +110,7 @@ export const HardshipForm = () => {
       {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6 text-sm text-red-700">
           <span>⚠️</span>
-          <span>{error}</span>
+          <span>{error.message}</span>
         </div>
       )}
 
@@ -125,11 +127,11 @@ export const HardshipForm = () => {
             </label>
             <input
               type="text"
-              name="fullName"
-              value={input.fullName}
+              name="name"
+              value={input.name}
               onChange={handleInput}
               placeholder="John Doe"
-              className="h-9 border border-gray-200 dark:border-gray-600 rounded-lg px-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              className={`h-9 border ${fieldErros.name ? "border-red-500" : "border-gray-200 dark:border-gray-600"} rounded-lg px-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent`}
             />
           </div>
 
@@ -142,7 +144,7 @@ export const HardshipForm = () => {
               name="dateOfBirth"
               value={input.dateOfBirth}
               onChange={handleInput}
-              className="h-9 border border-gray-200 dark:border-gray-600 rounded-lg px-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              className={`h-9 border ${fieldErros.dateOfBirth ? "border-red-500" : "border-gray-200 dark:border-gray-600"} rounded-lg px-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent`}
             ></input>
           </div>
         </div>
@@ -168,11 +170,11 @@ export const HardshipForm = () => {
                 type="number"
                 min="0.01"
                 step="0.01"
-                name="annualIncome"
-                value={input.annualIncome}
+                name="income"
+                value={input.income}
                 onChange={handleInput}
                 placeholder="0.00"
-                className="h-9 w-full border border-gray-200 dark:border-gray-600 rounded-lg pl-6 pr-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className={`h-9 w-full border ${fieldErros.income ? "border-red-500" : "border-gray-200 dark:border-gray-600"} rounded-lg pl-6 pr-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent`}
               />
             </div>
           </div>
@@ -190,11 +192,11 @@ export const HardshipForm = () => {
                 type="number"
                 min="0.01"
                 step="0.01"
-                name="annualExpenses"
-                value={input.annualExpenses}
+                name="expenses"
+                value={input.expenses}
                 onChange={handleInput}
                 placeholder="0.00"
-                className="h-9 w-full border border-gray-200 dark:border-gray-600 rounded-lg pl-6 pr-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className={`h-9 w-full border ${fieldErros.expenses ? "border-red-500" : "border-gray-200 dark:border-gray-600"} rounded-lg pl-6 pr-3 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent`}
               />
             </div>
           </div>
@@ -231,8 +233,8 @@ export const HardshipForm = () => {
             Hardship reason
           </label>
           <textarea
-            name="hardshipReason"
-            value={input.hardshipReason}
+            name="reason"
+            value={input.reason}
             onChange={handleInput}
             rows={3}
             placeholder="Describe your hardship situation..."
